@@ -1,4 +1,5 @@
 import bpy
+import math
 
 #ブレンダーに登録するアドオン情報
 bl_info = {
@@ -25,29 +26,6 @@ def draw_menu_manual(self,context):
 
 
 
-#アドオン有効化時コールバック
-def register():
-    #Blenderにクラスを登録
-    for cls in classes:
-        bpy.utils.register_class(cls)
-
-    #メニューに項目を追加
-    bpy.types.TOPBAR_MT_editor_menus.append(TOPBAR_MT_my_menu.submenu)
-    print("レベルエディタが有効化されました")
-
-
-
-#アドオン無効化時コールバック
-def unregister():
-    #メニューから項目を削除
-    bpy.types.TOPBAR_MT_editor_menus.remove(TOPBAR_MT_my_menu.submenu)
-    
-    #Blenderからクラスを削除
-    for cls in classes:
-        bpy.utils.unregister_class(cls)
-    print("レベルエディタが無効化されました")
-
-
 
 #トップバーの拡張メニュー
 class TOPBAR_MT_my_menu(bpy.types.Menu):
@@ -64,7 +42,8 @@ class TOPBAR_MT_my_menu(bpy.types.Menu):
         #トップバーの[エディターメニュー]に項目(オペレータ)を追加
         #self.layout.operator("wm.url_open_preset",text="Manual",icon='HELP')
         self.layout.operator(MYADDON_OT_stretch_vertex.bl_idname,text=MYADDON_OT_stretch_vertex.bl_label)
-    
+        self.layout.operator(MYADDON_OT_export_scene.bl_idname,text=MYADDON_OT_export_scene.bl_label)
+
     #既存のメニューにサブメニューを追加
     def submenu(self, context):
 
@@ -86,7 +65,7 @@ class MYADDON_OT_stretch_vertex(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     #メニューを実行した時に呼ばれるコールバック関数
-    def execute(self,context):
+    def execute(self, context):
         bpy.data.objects["Cube"].data.vertices[0].co.x += 1.0
         print("頂点を伸ばしました")
 
@@ -95,13 +74,96 @@ class MYADDON_OT_stretch_vertex(bpy.types.Operator):
 
 
 
+#オペレーター　シーン出力
+class MYADDON_OT_export_scene(bpy.types.Operator):
+    bl_idname = "myaddon.myaddon_ot_export_scene"
+    bl_label = "シーン出力"
+    bl_description = "シーン情報をExportします"
+
+
+    def execute(self, context):
+
+        print("シーン情報をExportします")
+
+        #print(bpy.context.scene.objects)
+
+        for object in bpy.context.scene.objects:
+            print(object.type + " - " + object.name)
+            #ローカルトランスフォーム行列から平行移動、回転、スケーリングを抽出
+            #型は、Vector,Quaternion,Vector
+            trans,rot,scale=object.matrix_local.decompose()
+            #回転をQuaternionからEuler(3軸での回転角)に変換
+            rot = rot.to_euler()
+            #ラジアンから度数法に変換
+            rot.x=math.degrees(rot.x)
+            rot.y=math.degrees(rot.y)
+            rot.z=math.degrees(rot.z)
+            #トランスフォーム情報を表示
+            print("Trans(%f,%f,%f)"%(trans.x,trans.y,trans.z))
+            print("Rot(%f,%f,%f)"%(rot.x,rot.y,rot.z))
+            print("Scale(%f,%f,%f)"%(scale.x,scale.y,scale.z))
+            #親オブジェクトの名前を表示
+            if object.parent:
+                print("Parent:" + object.parent.name)
+            print()
+
+
+
+
+
+
+        print("シーン情報をExportしました")
+        self.report({'INFO'},"シーン情報をExportしました")
+
+
+
+
+
+
+        return {'FINISHED'}
+
+
+
+
+
+
+
+
 
 #Blenderに登録するクラスリスト
 classes = (
     MYADDON_OT_stretch_vertex,
+    MYADDON_OT_export_scene,
     TOPBAR_MT_my_menu,
 )
 
+
+
+#アドオン有効化時コールバック
+def register():
+    #Blenderにクラスを登録
+    for cls in classes:
+        bpy.utils.register_class(cls)
+
+    #メニューに項目を追加
+    bpy.types.TOPBAR_MT_editor_menus.append(TOPBAR_MT_my_menu.submenu)
+    print("レベルエディタが有効化されました")
+
+
+
+#アドオン無効化時コールバック
+def unregister():
+    #メニューから項目を削除
+    bpy.types.TOPBAR_MT_editor_menus.remove(TOPBAR_MT_my_menu.submenu)
+    
+    #Blenderからクラスを削除
+    for cls in reversed(classes):
+
+        try:
+            bpy.utils.unregister_class(cls)
+        except RuntimeError:
+            pass
+    print("レベルエディタが無効化されました")
 
 #テスト実行用コード
 if __name__ == "__main__":
